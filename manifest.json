@@ -26,8 +26,5 @@
         "<all_urls>"
       ]
     }
-  ],
-  "content_security_policy": {
-    "extension_pages": "script-src 'self' 'inline-speculation-rules'; object-src 'self'"
-  }
+  ]
 }
