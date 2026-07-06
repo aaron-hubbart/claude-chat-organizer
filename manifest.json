@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Claude Chat Organizer",
+  "version": "3.0",
+  "description": "Organize your Claude.ai chats into projects.",
+  "permissions": ["tabs", "scripting"],
+  "host_permissions": ["https://claude.ai/*"],
+  "action": {
+    "default_title": "Claude Chat Organizer",
+    "default_popup": "organizer.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [{
+    "matches": ["chrome-extension://*/organizer.html"],
+    "js": ["content-organizer.js"],
+    "run_at": "document_start"
+  }],
+  "web_accessible_resources": [{
+    "resources": ["organizer.html"],
+    "matches": ["<all_urls>"]
+  }]
+}
