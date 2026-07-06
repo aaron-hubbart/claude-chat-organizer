@@ -11,8 +11,7 @@
     "https://claude.ai/*"
   ],
   "action": {
-    "default_title": "Claude Chat Organizer",
-    "default_popup": "organizer.html"
+    "default_title": "Claude Chat Organizer"
   },
   "background": {
     "service_worker": "background.js"
