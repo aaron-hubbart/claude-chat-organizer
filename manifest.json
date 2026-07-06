@@ -12,11 +12,6 @@
   "background": {
     "service_worker": "background.js"
   },
-  "content_scripts": [{
-    "matches": ["chrome-extension://*/organizer.html"],
-    "js": ["content-organizer.js"],
-    "run_at": "document_start"
-  }],
   "web_accessible_resources": [{
     "resources": ["organizer.html"],
     "matches": ["<all_urls>"]
