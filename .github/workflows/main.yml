@@ -38,7 +38,7 @@ jobs:
       - name: Build source zip
         id: zip
         run: |
-          ZIP_NAME="source-${{ steps.bump.outputs.new_version }}.zip"
+          ZIP_NAME="chrome-extension-download-${{ steps.bump.outputs.new_version }}.zip"
           mkdir -p staging
           rsync -a \
             --exclude='.git' \
