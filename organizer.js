@@ -1,4 +1,3 @@
-
 // Org UUID is resolved from the active claude.ai session at load time
 // (see resolveOrg). No org identifier is hardcoded in this file.
 let ORG = null;
