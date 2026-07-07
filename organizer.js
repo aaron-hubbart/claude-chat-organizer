@@ -67,6 +67,9 @@ function suggest(title, projects) {
 }
 function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+// Dark mode init
+if (localStorage.getItem('dark')==='1') document.body.classList.add('dark');
+
 let state = {
   loaded: false, executing: false, showLog: false, filterMode: 'all',
   projects: [], chats: [], assignments: {}, originals: {},
@@ -155,6 +158,7 @@ function render() {
         <div style="font-size:15px;font-weight:500">Chat organizer</div>
         <div class="sub">Assign chats to projects, apply prefixes, delete — then execute.</div>
       </div>
+      <button id="dark-btn" style="font-size:11px;padding:3px 10px;border:1px solid #d0d0cc;border-radius:5px;background:transparent;cursor:pointer;color:inherit" title="Toggle dark mode">${document.body.classList.contains('dark')?'☀ Light':'☾ Dark'}</button>
     </div>
     <div class="status ${state.status.type}">${esc(state.status.msg)}</div>
     ${!state.loaded
@@ -189,6 +193,11 @@ function bindEvents() {
   document.getElementById('reload-btn')?.addEventListener('click', load);
   document.getElementById('log-btn')?.addEventListener('click', ()=>setState({showLog:!state.showLog}));
   document.getElementById('filter-sel')?.addEventListener('change', e=>setState({filterMode:e.target.value}));
+  document.getElementById('dark-btn')?.addEventListener('click',()=>{
+    const on=document.body.classList.toggle('dark');
+    localStorage.setItem('dark',on?'1':'0');
+    render();
+  });
   document.querySelectorAll('.group-header').forEach(el=>{
     el.addEventListener('click', e=>{
       if (e.target.closest('.prefix-btn')) return;
