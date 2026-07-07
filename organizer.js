@@ -297,12 +297,19 @@ async function execute() {
   }
   for (const [pid,uuids] of Object.entries(grouped2)) {
     const pName=state.projects.find(p=>p.uuid===pid)?.name||pid;
-    addLog(`Moving ${uuids.length} chat(s) → ${pName}`);
-    try {
-      const r=await api('/chat_conversations/move_many',{method:'POST',body:JSON.stringify({conversation_uuids:uuids,project_uuid:pid})});
-      if (r.ok) addLog('  OK','ok');
-      else { const t=await r.text(); addLog(`  FAILED ${r.status}: ${t.slice(0,120)}`,'err'); }
-    } catch(e) { addLog(`  ERROR: ${e.message}`,'err'); }
+    const CHUNK=50;
+    const chunks=[];
+    for (let i=0;i<uuids.length;i+=CHUNK) chunks.push(uuids.slice(i,i+CHUNK));
+    addLog(`Moving ${uuids.length} chat(s) → ${pName}${chunks.length>1?' ('+chunks.length+' batches)':''}`);
+    for (let ci=0;ci<chunks.length;ci++) {
+      const chunk=chunks[ci];
+      if (chunks.length>1) addLog(`  Batch ${ci+1}/${chunks.length}: ${chunk.length} chats`);
+      try {
+        const r=await api('/chat_conversations/move_many',{method:'POST',body:JSON.stringify({conversation_uuids:chunk,project_uuid:pid})});
+        if (r.ok) addLog((chunks.length>1?`  Batch ${ci+1} OK`:'  OK'),'ok');
+        else { const t=await r.text(); addLog(`  FAILED ${r.status}: ${t.slice(0,120)}`,'err'); }
+      } catch(e) { addLog(`  ERROR: ${e.message}`,'err'); }
+    }
   }
   if (state.pendingPrefixes.size>0) {
     addLog('--- Applying prefixes ---');
