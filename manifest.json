@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Claude Chat Organizer",
-  "version": "3.2",
+  "version": "3.3",
   "description": "Organize your Claude.ai chats into projects.",
   "permissions": ["tabs", "scripting"],
   "host_permissions": ["https://claude.ai/*"],
@@ -12,7 +12,7 @@
     "service_worker": "background.js"
   },
   "web_accessible_resources": [{
-    "resources": ["organizer.html"],
+    "resources": ["organizer.html", "organizer.js", "content-organizer.js"],
     "matches": ["<all_urls>"]
   }]
 }
