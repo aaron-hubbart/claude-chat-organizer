@@ -109,7 +109,7 @@ function visibleChats(list) {
 }
 
 function allProjectOptions(sel) {
-  return state.projects.map(p=>`<option value="${p.uuid}"${p.uuid===sel?' selected':''}>${esc(p.name)}</option>`).join('')+
+  return [...state.projects].sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<option value="${p.uuid}"${p.uuid===sel?' selected':''}>${esc(p.name)}</option>`).join('')+
     [...new Set(Object.values(state.assignments).filter(v=>v&&v.startsWith('__new__:')))].map(v=>`<option value="${v}"${v===sel?' selected':''}>${esc(v.replace('__new__:',''))} (new)</option>`).join('');
 }
 
