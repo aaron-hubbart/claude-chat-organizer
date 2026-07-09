@@ -115,8 +115,9 @@ function allProjectOptions(sel) {
 
 function renderChatRow(c, num) {
   const pid=state.assignments[c.uuid]||''; const toDelete=state.pendingDeletes.has(c.uuid);
-  const hasPfx=pid&&!pid.startsWith('__new__:')&&state.pendingPrefixes.has(pid);
-  const pfx=hasPfx?`[${state.projects.find(p=>p.uuid===pid)?.name||''}] `:'';
+  const hasPfx=pid&&state.pendingPrefixes.has(pid);
+  const pfxName=pid?.startsWith('__new__:')?pid.replace('__new__:',''):(state.projects.find(p=>p.uuid===pid)?.name||'');
+  const pfx=hasPfx?`[${pfxName}] `:'';
   const displayName=pfx&&!(c.name||'').startsWith(pfx)?pfx+c.name:c.name;
   return `<div class="chat-row${toDelete?' deleted':''}" data-uuid="${c.uuid}">
     <span class="row-num">${num}</span>
@@ -170,9 +171,9 @@ function render() {
             <option value="changed"${state.filterMode==='changed'?' selected':''}>Changed from original</option>
           </select>
           <span class="pending-count">${changedCount} change${changedCount!==1?'s':''} pending${state.pendingDeletes.size>0?` · ${state.pendingDeletes.size} marked for deletion`:''}</span>
+          <button class="btn" id="collapse-all-btn">Collapse all</button>
+          <button class="btn" id="expand-all-btn">Expand all</button>
         </div>
-        ${groups.map(g=>renderGroup(g,false)).join('')}
-        ${unassigned.length>0?renderGroup({name:'Unassigned',uuid:'__unassigned__',chats:unassigned},true):''}
         <div class="actions">
           <button class="btn-primary" id="exec-btn"${state.executing?' disabled':''}>
             ${state.executing?'Running…':`Execute${state.pendingDeletes.size>0?` (incl. ${state.pendingDeletes.size} deletion${state.pendingDeletes.size!==1?'s':''})`:''}` }
@@ -180,6 +181,8 @@ function render() {
           <button class="btn" id="log-btn">${state.showLog?'Hide log':'Show log'}</button>
           <button class="btn" id="reload-btn">Reload</button>
         </div>
+        ${unassigned.length>0?renderGroup({name:'Unassigned',uuid:'__unassigned__',chats:unassigned},true):''}
+        ${groups.map(g=>renderGroup(g,false)).join('')}
         <div class="summary">${assignedCount} of ${state.chats.length} chats assigned · ${state.pendingPrefixes.size} prefix group${state.pendingPrefixes.size!==1?'s':''} queued</div>
         ${state.showLog?`<div class="log-wrap">${state.log.map(l=>`<div class="log-line ${l.type}">${esc(l.msg)}</div>`).join('')}</div>`:''}
       `}
@@ -189,6 +192,14 @@ function render() {
 
 function bindEvents() {
   document.getElementById('load-btn')?.addEventListener('click', load);
+  document.getElementById('collapse-all-btn')?.addEventListener('click',()=>{
+    const {groups,unassigned}=groupedChats();
+    const allPids=new Set([...groups.map(g=>g.uuid)]);
+    state.collapsed=allPids; render();
+  });
+  document.getElementById('expand-all-btn')?.addEventListener('click',()=>{
+    state.collapsed=new Set(); render();
+  });
   document.getElementById('exec-btn')?.addEventListener('click', execute);
   document.getElementById('reload-btn')?.addEventListener('click', load);
   document.getElementById('log-btn')?.addEventListener('click', ()=>setState({showLog:!state.showLog}));
@@ -267,6 +278,9 @@ async function load() {
     const asgn={},orig={};
     for (const c of merged) { const val=c.project_uuid||suggest(c.name,projs); asgn[c.uuid]=val; orig[c.uuid]=val; }
     state.assignments=asgn; state.originals=orig;
+    // Collapse all groups except Unassigned by default
+    const allPids=new Set(Object.values(asgn).filter(v=>v&&v!=='__unassigned__'));
+    state.collapsed=allPids;
     const assignedCount=merged.filter(c=>c.project_uuid).length;
     setState({loaded:true,status:{msg:`${projs.length} projects · ${merged.length} chats (${assignedCount} assigned, ${merged.length-assignedCount} unassigned)`,type:'ok'}});
   } catch(e) { setState({status:{msg:`Error: ${e.message}`,type:'err'}}); }
@@ -300,7 +314,7 @@ async function execute() {
     try {
       const r=await api('/projects',{method:'POST',body:JSON.stringify({name,description:'',is_private:true})});
       const d=await r.json();
-      if (r.ok&&d.uuid) { addLog(`  Created: ${d.uuid}`,'ok'); grouped2[d.uuid]=uuids; }
+      if (r.ok&&d.uuid) { addLog(`  Created: ${d.uuid}`,'ok'); grouped2[d.uuid]=uuids; state._newPidMap=state._newPidMap||{}; state._newPidMap[`__new__:${name}`]=d.uuid; state.projects.push(d); }
       else addLog(`  FAILED: ${JSON.stringify(d)}`,'err');
     } catch(e) { addLog(`  ERROR: ${e.message}`,'err'); }
   }
@@ -323,9 +337,12 @@ async function execute() {
   if (state.pendingPrefixes.size>0) {
     addLog('--- Applying prefixes ---');
     for (const pid of state.pendingPrefixes) {
-      const p=state.projects.find(p=>p.uuid===pid); if (!p) continue;
+      // For newly-created projects, pid may be a __new__: key that was remapped to a real UUID
+      const resolvedPid=state._newPidMap?.[pid]||pid;
+      const p=state.projects.find(p=>p.uuid===resolvedPid)||{uuid:resolvedPid,name:pid.replace('__new__:','')};
+      if (!resolvedPid) continue;
       const prefix=`[${p.name}] `;
-      for (const c of state.chats.filter(c=>state.assignments[c.uuid]===pid&&!state.pendingDeletes.has(c.uuid))) {
+      for (const c of state.chats.filter(c=>(state.assignments[c.uuid]===pid||state.assignments[c.uuid]===resolvedPid)&&!state.pendingDeletes.has(c.uuid))) {
         const currentName=c.name||''; if (currentName.startsWith(prefix)) continue;
         addLog(`  ${currentName} → ${prefix+currentName}`);
         try {
@@ -338,7 +355,8 @@ async function execute() {
   }
   addLog('=== Complete ===');
   state.executing=false;
-  setState({status:{msg:'Done. Reload to reflect changes.',type:'ok'}});
+  setState({status:{msg:'Done. Reloading…',type:'ok'}});
+  setTimeout(()=>load(), 1200);
 }
 
 render();
