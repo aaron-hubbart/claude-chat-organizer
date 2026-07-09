@@ -73,7 +73,7 @@ if (localStorage.getItem('dark')==='1') document.body.classList.add('dark');
 let state = {
   loaded: false, executing: false, showLog: false, filterMode: 'all',
   projects: [], chats: [], assignments: {}, originals: {},
-  pendingPrefixes: new Set(), pendingDeletes: new Set(), collapsed: new Set(),
+  pendingPrefixes: new Set(), pendingDeletes: new Set(), collapsed: new Set(), renames: {},
   log: [], status: { msg: 'Click Load to start.', type: 'idle' },
 };
 
@@ -121,7 +121,7 @@ function renderChatRow(c, num) {
   const displayName=pfx&&!(c.name||'').startsWith(pfx)?pfx+c.name:c.name;
   return `<div class="chat-row${toDelete?' deleted':''}" data-uuid="${c.uuid}">
     <span class="row-num">${num}</span>
-    <span class="row-title${toDelete?' deleted':''}" title="${esc(c.name)}">${esc(displayName)||'Untitled'}</span>
+    <input class="row-title${toDelete?' deleted':''}" data-uuid="${c.uuid}" data-orig="${esc(state.renames[c.uuid]!==undefined?state.renames[c.uuid]:(displayName||'Untitled'))}" value="${esc(state.renames[c.uuid]!==undefined?state.renames[c.uuid]:(displayName||'Untitled'))}" title="Click to rename"${toDelete?' disabled':''}>
     <span class="row-date">${fmtDate(c.updated_at)}</span>
     <select class="row-select" data-uuid="${c.uuid}"${toDelete?' disabled':''}>
       <option value=""${!pid?' selected':''}>— skip —</option>
@@ -170,7 +170,7 @@ function render() {
             <option value="unassigned"${state.filterMode==='unassigned'?' selected':''}>Unassigned only</option>
             <option value="changed"${state.filterMode==='changed'?' selected':''}>Changed from original</option>
           </select>
-          <span class="pending-count">${changedCount} change${changedCount!==1?'s':''} pending${state.pendingDeletes.size>0?` · ${state.pendingDeletes.size} marked for deletion`:''}</span>
+          <span class="pending-count">${changedCount} change${changedCount!==1?'s':''} pending${state.pendingDeletes.size>0?` · ${state.pendingDeletes.size} marked for deletion`:''}${Object.keys(state.renames).length>0?` · ${Object.keys(state.renames).length} rename${Object.keys(state.renames).length!==1?'s':''} pending`:''}</span>
           <button class="btn" id="collapse-all-btn">Collapse all</button>
           <button class="btn" id="expand-all-btn">Expand all</button>
         </div>
@@ -235,6 +235,27 @@ function bindEvents() {
       render();
     });
   });
+  document.querySelectorAll('.row-title').forEach(input=>{
+    const uuid=input.dataset.uuid;
+    input.addEventListener('keydown', e=>{
+      if (e.key==='Enter') { input.blur(); }
+      if (e.key==='Escape') { input.value=input.dataset.orig; delete state.renames[uuid]; input.blur(); }
+    });
+    input.addEventListener('change', e=>{
+      const val=e.target.value.trim();
+      const orig=state.chats.find(c=>c.uuid===uuid)?.name||'';
+      if (val && val!==orig) state.renames[uuid]=val;
+      else delete state.renames[uuid];
+      // update pending count without full re-render
+      const pc=document.querySelector('.pending-count');
+      if (pc) {
+        const rc=Object.keys(state.renames).length;
+        const cc=state.chats.filter(c=>state.assignments[c.uuid]!==state.originals[c.uuid]&&!state.pendingDeletes.has(c.uuid)).length;
+        const dc=state.pendingDeletes.size;
+        pc.textContent=`${cc} change${cc!==1?'s':''} pending${dc>0?` · ${dc} marked for deletion`:''}${rc>0?` · ${rc} rename${rc!==1?'s':''} pending`:''}`;
+      }
+    });
+  });
   document.querySelectorAll('.row-del').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const next=new Set(state.pendingDeletes);
@@ -245,7 +266,7 @@ function bindEvents() {
 }
 
 async function load() {
-  state.log=[]; state.pendingDeletes=new Set(); state.pendingPrefixes=new Set(); state.loaded=false;
+  state.log=[]; state.pendingDeletes=new Set(); state.pendingPrefixes=new Set(); state.renames={}; state.loaded=false;
   setState({status:{msg:'Resolving account…',type:'loading'}});
   try {
     try {
@@ -351,6 +372,18 @@ async function execute() {
           else { const t=await r.text(); addLog(`    FAILED ${r.status}: ${t.slice(0,80)}`,'err'); }
         } catch(e) { addLog(`    ERROR: ${e.message}`,'err'); }
       }
+    }
+  }
+  if (Object.keys(state.renames).length>0) {
+    addLog('--- Applying renames ---');
+    for (const [uuid,name] of Object.entries(state.renames)) {
+      const c=state.chats.find(c=>c.uuid===uuid);
+      addLog(`  ${c?.name||uuid} → ${name}`);
+      try {
+        const r=await api(`/chat_conversations/${uuid}`,{method:'PUT',body:JSON.stringify({name})});
+        if (r.ok) { addLog('    OK','ok'); if (c) c.name=name; }
+        else { const t=await r.text(); addLog(`    FAILED ${r.status}: ${t.slice(0,80)}`,'err'); }
+      } catch(e) { addLog(`    ERROR: ${e.message}`,'err'); }
     }
   }
   addLog('=== Complete ===');

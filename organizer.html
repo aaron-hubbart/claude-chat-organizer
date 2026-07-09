@@ -53,6 +53,8 @@ body.dark .chat-row:nth-child(even) { background: #222; }
 body.dark .chat-row.deleted { background: #2a1a1a; }
 body.dark .row-num { color: #555; }
 body.dark .row-title { color: #ddd; }
+body.dark .row-title:hover:not(:disabled) { border-color: #444; background: #2a2a2a; }
+body.dark .row-title:focus { background: #1a1a1a; border-color: #3b82f6; }
 body.dark .row-date { color: #555; }
 body.dark .row-select { background: #2a2a2a; border-color: #444; color: #ddd; }
 body.dark .row-del { background: #2a2a2a; border-color: #333; color: #666; }
@@ -64,7 +66,9 @@ body.dark .toolbar select { background: #2a2a2a; border-color: #444; color: #ddd
 body.dark .prefix-btn { background: #2a2a2a; border-color: #444; color: #aaa; }
 body.dark .prefix-btn.active { background: #1e2a3a; border-color: #3b82f6; color: #93c5fd; }
 .row-num { font-size: 11px; color: #bbb; min-width: 22px; text-align: right; flex-shrink: 0; }
-.row-title { flex: 1; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row-title { flex: 1; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 1px solid transparent; border-radius: 4px; padding: 1px 4px; background: transparent; color: inherit; cursor: text; min-width: 0; }
+.row-title:hover:not(:disabled) { border-color: #d0d0cc; background: #fafaf8; }
+.row-title:focus { outline: none; border-color: #3b82f6; background: #fff; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
 .row-title.deleted { text-decoration: line-through; color: #aaa; }
 .row-date { font-size: 11px; color: #aaa; min-width: 44px; text-align: right; flex-shrink: 0; }
 .row-select { font-size: 12px; padding: 3px 5px; border: 1px solid #d0d0cc; border-radius: 6px; background: #fff; min-width: 150px; max-width: 195px; flex-shrink: 0; }
